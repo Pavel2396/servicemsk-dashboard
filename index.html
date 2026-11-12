@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fresh Сервис МСК — Дашборд</title>
+<!--
+  Дашборд Fresh | Сервис МСК
+  Облачная база Firebase Firestore подключена (проект servicemsk-dashboard).
+  После замены файла на хостинге обязательно нажмите Ctrl+F5 в браузере.
+-->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue: #0047FF;
+    --blue-dark: #0036cc;
+    --blue-light: #e8eeff;
+    --bg: #f7f9fc;
+    --text: #1a1f36;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --purple: #7c3aed;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .logo-svg { height: 34px; width: auto; display: block; }
+  .login-logo-wrap .logo-svg { height: 40px; }
+  .logo-divider {
+    font-size: 26px;
+    font-weight: 300;
+    color: #111;
+    line-height: 1;
+    margin: 0 2px;
+    user-select: none;
+  }
+  .login-logo-wrap .logo-divider { font-size: 30px; }
+  .login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #e8eeff 0%, #f7f9fc 100%);
+    padding: 20px;
+  }
+  .login-card {
+    background: #fff;
+    padding: 48px 40px;
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0,71,255,0.08);
+    width: 100%;
+    max-width: 440px;
+  }
+  .login-logo-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .login-logo-text { font-size: 24px; font-weight: 800; color: #111; letter-spacing: -0.3px; white-space: nowrap; }
+  .login-subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+  .login-title { font-size: 24px; font-weight: 700; margin-bottom: 28px; color: #111; }
+  .form-group { margin-bottom: 18px; }
+  .form-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .form-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 15px;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+    font-family: inherit;
+    background: #fff;
+  }
+  .form-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,71,255,0.1); }
+  .btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: var(--blue-dark); }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: #eef1f6; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-success:hover { background: #059669; }
+  .btn-warning { background: var(--warning); color: #fff; }
+  .btn-warning:hover { background: #d97706; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-full { width: 100%; justify-content: center; padding: 14px; font-size: 16px; font-weight: 600; }
+  .login-error {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .login-error.show { display: block; }
+  .hint-box {
+    background: var(--blue-light);
+    border: 1px solid #c7d6ff;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-top: 24px;
+    font-size: 13px;
+    color: #1e40af;
+    line-height: 1.6;
+  }
+  .hint-box strong { display: block; margin-bottom: 4px; font-size: 14px; }
+  .header {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-logo { display: flex; align-items: center; gap: 8px; }
+  .header-logo-text { font-size: 22px; font-weight: 800; color: #111; letter-spacing: -0.3px; white-space: nowrap; }
+  .header-right { display: flex; align-items: center; gap: 14px; }
+  .user-badge { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--bg); border-radius: 10px; }
+  .avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .user-info-name { font-weight: 600; font-size: 14px; }
+  .user-info-role { font-size: 12px; color: var(--muted); }
+  .logout-btn {
+    background: none;
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+    font-family: inherit;
+  }
+  .logout-btn:hover { background: var(--bg); color: var(--text); }
+  .container { max-width: 1600px; margin: 0 auto; padding: 28px; }
+  .page-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .page-title { font-size: 26px; font-weight: 700; }
+  .page-subtitle { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .save-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 6px;
+  }
+  .save-indicator.cloud { color: var(--success); }
+  .save-indicator.local { color: var(--warning); }
+  .save-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    background: #fff;
+    padding: 5px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    width: fit-content;
+  }
+  .tab {
+    padding: 9px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--blue); color: #fff; }
+  .kanban {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(260px, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  .kanban-column { background: #f0f3f9; border-radius: 14px; padding: 14px; min-height: 400px; }
+  .column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e2e7f1;
+  }
+  .column-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .column-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-waiting { background: var(--warning); }
+  .dot-progress { background: var(--purple); }
+  .dot-review { background: #a855f7; }
+  .dot-done { background: var(--success); }
+  .column-count { background: #fff; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .column-cards { display: flex; flex-direction: column; gap: 10px; }
+  .task-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .task-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,71,255,0.1);
+    border-color: var(--blue);
+  }
+  .task-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 8px; }
+  .task-id { font-size: 11px; color: var(--muted); font-weight: 600; }
+  .task-priority { font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 600; }
+  .priority-high { background: #fee2e2; color: #991b1b; }
+  .priority-medium { background: #fef3c7; color: #92400e; }
+  .priority-low { background: #d1fae5; color: #065f46; }
+  .task-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; line-height: 1.4; }
+  .task-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .task-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid var(--border); }
+  .task-assignee { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .task-assignee .avatar { width: 22px; height: 22px; font-size: 10px; }
+  .task-date { font-size: 11px; color: var(--muted); }
+  .empty-column { text-align: center; padding: 30px 10px; color: var(--muted); font-size: 13px; }
+  .empty-board {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--muted);
+    background: #fff;
+    border-radius: 14px;
+    border: 1px dashed var(--border);
+  }
+  .empty-board svg { opacity: 0.3; margin-bottom: 16px; }
+  .empty-board-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    max-width: 720px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal-header {
+    padding: 22px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .modal-subtitle { font-size: 12px; color: var(--muted); }
+  .modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 22px;
+    color: var(--muted);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-family: inherit;
+  }
+  .modal-close:hover { background: var(--bg); }
+  .modal-body { padding: 24px; }
+  .modal-section { margin-bottom: 22px; }
+  .modal-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    gap: 16px;
+    align-items: center;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: var(--muted); flex-shrink: 0; }
+  .info-value { font-weight: 500; text-align: right; }
+  .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .comment-input { display: flex; gap: 10px; margin-bottom: 14px; }
+  .comment-input textarea {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+  }
+  .comment-input textarea:focus { border-color: var(--blue); }
+  .comments-list { display: flex; flex-direction: column; gap: 10px; max-height: 280px; overflow-y: auto; }
+  .comment { background: var(--bg); padding: 10px 14px; border-radius: 10px; border-left: 3px solid var(--blue); }
+  .comment-header { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; gap: 8px; }
+  .comment-author { font-weight: 600; }
+  .comment-date { color: var(--muted); flex-shrink: 0; }
+  .comment-text { font-size: 13px; line-height: 1.5; }
+  .customer-approve {
+    background: var(--blue-light);
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid var(--blue);
+    margin-top: 14px;
+  }
+  .customer-approve-title { font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+  .status-tag { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .st-waiting { background: #fef3c7; color: #92400e; }
+  .st-progress { background: #ede9fe; color: #5b21b6; }
+  .st-review { background: #f3e8ff; color: #6b21a8; }
+  .st-done { background: #d1fae5; color: #065f46; }
+  .hidden { display: none !important; }
+  .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--blue);
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,71,255,0.3);
+    z-index: 300;
+    animation: slideIn 0.3s ease;
+    font-weight: 500;
+    font-size: 14px;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(100px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-bar label { font-weight: 500; font-size: 14px; }
+  .filter-select {
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    background: #fff;
+    cursor: pointer;
+    min-width: 220px;
+    outline: none;
+    font-family: inherit;
+  }
+  .filter-select:focus { border-color: var(--blue); }
+  .create-task-btn {
+    background: var(--blue);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .create-task-btn:hover { background: var(--blue-dark); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .deadline-info { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+  .deadline-ok { background: #d1fae5; color: #065f46; }
+  .deadline-warn { background: #fef3c7; color: #92400e; }
+  .deadline-over { background: #fee2e2; color: #991b1b; }
+  .creator-badge { display: inline-flex; align-items: center; gap: 6px; }
+  .confirm-overlay { z-index: 400; }
+  .confirm-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px 28px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    animation: slideUp 0.2s ease;
+  }
+  .confirm-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    margin: 0 auto 16px;
+  }
+  .confirm-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .confirm-text { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+  .confirm-buttons { display: flex; gap: 10px; justify-content: center; }
+  @media (max-width: 1100px) { .kanban { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 768px) {
+    .kanban { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .page-top { flex-direction: column; }
+    .header-logo-text { font-size: 17px; }
+    .logo-divider { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo-wrap">
+      <svg class="logo-svg" viewBox="0 0 160 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FRESH">
+        <text x="0" y="46" transform="translate(10,0) skewX(-10)" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-weight="900" font-style="italic" font-size="40" fill="#0047FF" letter-spacing="1">FRESH</text>
+      </svg>
+      <span class="logo-divider">|</span>
+      <span class="login-logo-text">Сервис МСК</span>
+    </div>
+    <div class="login-subtitle">Дашборд команды</div>
+    <h2 class="login-title">Вход в систему</h2>
+    <div class="login-error" id="loginError">Неверный логин или пароль</div>
+    <div class="form-group">
+      <label class="form-label">Логин</label>
+      <input type="text" class="form-input" id="loginInput" placeholder="Фамилия" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Пароль</label>
+      <input type="password" class="form-input" id="passwordInput" placeholder="Пароль">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">Войти</button>
+    <div class="hint-box">
+      <strong>Данные для входа</strong>
+      Логин = фамилия сотрудника (строчные буквы)<br>
+      Пароль указан в инструкции от руководителя
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header class="header">
+    <div class="header-logo">
+      <svg class="logo-svg" viewBox="0 0 160 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FRESH">
+        <text x="0" y="46" transform="translate(10,0) skewX(-10)" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-weight="900" font-style="italic" font-size="40" fill="#0047FF" letter-spacing="1">FRESH</text>
+      </svg>
+      <span class="logo-divider">|</span>
+      <span class="header-logo-text">Сервис МСК</span>
+    </div>
+    <div class="header-right">
+      <div class="user-badge">
+        <div class="avatar" id="userAvatar">ПЖ</div>
+        <div>
+          <div class="user-info-name" id="userName">Павел Жевлаков</div>
+          <div class="user-info-role" id="userRole">Руководитель</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">Выйти</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="page-top">
+      <div>
+        <h1 class="page-title">Дашборд задач</h1>
+        <div class="page-subtitle" id="welcomeText">Добро пожаловать в систему</div>
+        <div class="save-indicator local" id="saveMode"><span class="save-dot"></span> <span id="saveModeText">Локальный режим</span></div>
+      </div>
+      <button class="create-task-btn hidden" id="createTaskBtn" onclick="openCreateModal()">
+        <span>＋</span> Создать задачу
+      </button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-view="all">Все задачи</button>
+      <button class="tab" data-view="employee">По сотрудникам</button>
+    </div>
+
+    <div id="allView">
+      <div class="kanban" id="kanbanBoard"></div>
+    </div>
+
+    <div id="employeeView" class="hidden">
+      <div class="filter-bar">
+        <label>Выберите сотрудника:</label>
+        <select class="filter-select" id="employeeSelect"></select>
+      </div>
+      <div class="kanban" id="empKanbanBoard"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="taskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div style="flex:1;">
+        <div class="modal-subtitle" id="modalTaskId">Задача #001</div>
+        <div class="modal-title" id="modalTaskTitle">Название</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="modal-section-title">Информация</div>
+        <div class="info-row"><span class="info-label">Статус</span><span class="info-value" id="modalStatus"></span></div>
+        <div class="info-row"><span class="info-label">Приоритет</span><span class="info-value" id="modalPriority"></span></div>
+        <div class="info-row"><span class="info-label">Исполнитель</span><span class="info-value" id="modalAssignee"></span></div>
+        <div class="info-row"><span class="info-label">Заказчик (создатель)</span><span class="info-value" id="modalCreator"></span></div>
+        <div class="info-row"><span class="info-label">Срок выполнения</span><span class="info-value" id="modalDeadline"></span></div>
+        <div class="info-row"><span class="info-label">Создана</span><span class="info-value" id="modalCreated"></span></div>
+        <div style="margin-top:12px;">
+          <div class="modal-section-title">Описание</div>
+          <p id="modalDescription" style="font-size:14px;line-height:1.6;"></p>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Действия</div>
+        <div class="modal-actions" id="modalActions"></div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Комментарии</div>
+        <div class="comment-input">
+          <textarea id="commentText" placeholder="Добавьте комментарий..."></textarea>
+          <button class="btn btn-primary" onclick="addComment()">Отправить</button>
+        </div>
+        <div class="comments-list" id="commentsList"></div>
+      </div>
+
+      <div id="customerApproveBlock"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-subtitle" id="createModalSubtitle">Новая задача</div>
+        <div class="modal-title" id="createModalTitle">Создание задачи</div>
+      </div>
+      <button class="modal-close" onclick="closeCreateModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Название задачи *</label>
+        <input type="text" class="form-input" id="newTaskTitle" placeholder="Введите название">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Описание</label>
+        <textarea class="form-input" id="newTaskDesc" rows="3" placeholder="Описание задачи"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Исполнитель</label>
+          <select class="form-input" id="newTaskEmployee"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Срок выполнения *</label>
+          <input type="date" class="form-input" id="newTaskDeadline">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Приоритет</label>
+          <select class="form-input" id="newTaskPriority">
+            <option value="low">Низкий</option>
+            <option value="medium" selected>Средний</option>
+            <option value="high">Высокий</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Статус</label>
+          <select class="form-input" id="newTaskStatus">
+            <option value="waiting">Ждёт принятия</option>
+            <option value="in_progress">В работе</option>
+            <option value="review">На проверке</option>
+            <option value="done">Выполнена</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:var(--blue-light);padding:12px;border-radius:10px;margin-bottom:16px;font-size:13px;color:#1e40af;">
+        <strong>Заказчик:</strong> <span id="creatorPreview"></span> (автоматически — создатель задачи)
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+        <button class="btn btn-secondary" onclick="closeCreateModal()">Отмена</button>
+        <button class="btn btn-primary" id="createSaveBtn" onclick="saveTask()">Создать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay confirm-overlay" id="confirmModal">
+  <div class="confirm-card">
+    <div class="confirm-icon">🗑</div>
+    <div class="confirm-title">Удалить задачу?</div>
+    <div class="confirm-text" id="confirmText">Задача будет удалена безвозвратно.</div>
+    <div class="confirm-buttons">
+      <button class="btn btn-secondary" onclick="cancelDelete()">Отмена</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Да, удалить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= FIREBASE CONFIG =================
+   Проект: servicemsk-dashboard (вставлен автоматически) */
+const firebaseConfig = {
+  apiKey: "AIzaSyBFWWNFtKAmgmKx_UNofPQMI2PAxtIEsd8",
+  authDomain: "servicemsk-dashboard.firebaseapp.com",
+  projectId: "servicemsk-dashboard",
+  storageBucket: "servicemsk-dashboard.firebasestorage.app",
+  messagingSenderId: "108638818806",
+  appId: "1:108638818806:web:9d157ebbb99ad33738f7d7"
+};
+/* ==================================================== */
+
+let useCloud = false;
+let db = null;
+let cloudLoaded = false;
+
+try {
+  const configFilled = firebaseConfig.apiKey && !String(firebaseConfig.apiKey).includes('ВСТАВЬТЕ');
+  if (configFilled && typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    useCloud = true;
+  }
+} catch (e) {
+  console.warn('Firebase не подключён, работаю локально:', e);
+  useCloud = false;
+}
+
+const STORAGE_KEY = 'fresh_service_tasks_v1';
+
+function loadTasks() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) { console.warn('Не удалось загрузить задачи:', e); }
+  return [];
+}
+
+function saveTasks() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  } catch (e) { console.warn('Не удалось сохранить задачи:', e); }
+}
+
+function persistUpsert(task) {
+  if (useCloud) {
+    db.collection('tasks').doc(String(task.id)).set(task).catch(err => {
+      console.warn(err);
+      notify('⚠️ Ошибка сохранения в облако');
+    });
+  } else {
+    saveTasks();
+  }
+}
+
+function persistDelete(id) {
+  if (useCloud) {
+    db.collection('tasks').doc(String(id)).delete().catch(err => {
+      console.warn(err);
+      notify('⚠️ Ошибка удаления из облака');
+    });
+  } else {
+    saveTasks();
+  }
+}
+
+function initCloudListener() {
+  db.collection('tasks').onSnapshot((snap) => {
+    const arr = [];
+    snap.forEach(doc => arr.push(doc.data()));
+    arr.sort((a, b) => a.id - b.id);
+    tasks = arr;
+    cloudLoaded = true;
+    render();
+  }, (err) => {
+    console.warn('Firestore error:', err);
+    notify('⚠️ Ошибка Firestore: проверьте правила доступа');
+  });
+}
+
+const employees = [
+  { id: 1, name: 'Жевлаков Павел', surname: 'жевлаков', initials: 'ПЖ', role: 'Руководитель', roleKey: 'leader' },
+  { id: 2, name: 'Кривоносов Никита', surname: 'кривоносов', initials: 'НК', role: 'Старший мастер-консультант', roleKey: 'senior' },
+  { id: 3, name: 'Жарков Сергей', surname: 'жарков', initials: 'СЖ', role: 'Старший мастер-консультант', roleKey: 'senior' },
+  { id: 4, name: 'Болунов Данил', surname: 'болунов', initials: 'ДБ', role: 'Мастер-консультант', roleKey: 'master' },
+  { id: 5, name: 'Воложайкин Валерий', surname: 'воложайкин', initials: 'ВВ', role: 'Мастер-консультант', roleKey: 'master' },
+  { id: 6, name: 'Рзаева Ирана', surname: 'рзаева', initials: 'ИР', role: 'Ассистент сервиса', roleKey: 'assistant' },
+  { id: 7, name: 'Кушнирова Алина', surname: 'кушнирова', initials: 'АК', role: 'Ассистент сервиса', roleKey: 'assistant' }
+];
+
+const passwords = {
+  'жевлаков': 'pavel1',
+  'кривоносов': 'nikita1',
+  'жарков': 'sergey1',
+  'болунов': 'danil1',
+  'воложайкин': 'valera1',
+  'рзаева': 'irana1',
+  'кушнирова': 'alina1'
+};
+
+const statusConfig = {
+  waiting:    { text: 'Ждёт принятия', class: 'st-waiting',  dot: 'dot-waiting' },
+  in_progress:{ text: 'В работе',      class: 'st-progress', dot: 'dot-progress' },
+  review:     { text: 'На проверке',   class: 'st-review',   dot: 'dot-review' },
+  done:       { text: 'Выполнена',     class: 'st-done',     dot: 'dot-done' }
+};
+
+const columns = ['waiting', 'in_progress', 'review', 'done'];
+
+let tasks = useCloud ? [] : loadTasks();
+
+let currentUser = null;
+let currentView = 'all';
+let currentEmployeeFilter = null;
+let currentTaskId = null;
+let editingTaskId = null;
+let pendingDeleteId = null;
+
+(function setModeIndicator() {
+  const wrap = document.getElementById('saveMode');
+  const text = document.getElementById('saveModeText');
+  if (useCloud) {
+    wrap.className = 'save-indicator cloud';
+    text.textContent = '☁️ Общая база команды — изменения видны всем сотрудникам';
+  } else {
+    wrap.className = 'save-indicator local';
+    text.textContent = '💾 Локальный режим — для общей базы подключите Firebase';
+  }
+})();
+
+if (useCloud) initCloudListener();
+
+function doLogin() {
+  const login = document.getElementById('loginInput').value.trim().toLowerCase();
+  const pass = document.getElementById('passwordInput').value.trim();
+  const user = employees.find(e => e.surname === login && passwords[e.surname] === pass);
+  if (!user) {
+    document.getElementById('loginError').classList.add('show');
+    return;
+  }
+  currentUser = user;
+  document.getElementById('loginError').classList.remove('show');
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('userAvatar').textContent = user.initials;
+  document.getElementById('userName').textContent = user.name;
+  document.getElementById('userRole').textContent = user.role;
+  document.getElementById('welcomeText').textContent = `${user.name}, добро пожаловать в систему`;
+  if (user.roleKey === 'leader') {
+    document.getElementById('createTaskBtn').classList.remove('hidden');
+  } else {
+    document.getElementById('createTaskBtn').classList.add('hidden');
+  }
+  render();
+  if (!useCloud && tasks.length > 0) notify(`✓ Загружено сохранённых задач: ${tasks.length}`);
+}
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginInput').value = '';
+  document.getElementById('passwordInput').value = '';
+}
+
+function render() {
+  renderKanban('kanbanBoard', getFilteredTasks());
+  renderEmployeeSelect();
+  if (currentView === 'employee' && currentEmployeeFilter) {
+    renderKanban('empKanbanBoard', getEmployeeFilteredTasks(currentEmployeeFilter));
+  }
+}
+
+function getFilteredTasks() {
+  let filtered = [...tasks];
+  if (currentView === 'employee' && currentEmployeeFilter) {
+    filtered = filtered.filter(t => t.employeeId === currentEmployeeFilter);
+  }
+  return filtered;
+}
+
+function getEmployeeFilteredTasks(empId) {
+  return tasks.filter(t => t.employeeId === empId);
+}
+
+function getDeadlineClass(deadline) {
+  if (!deadline) return '';
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const dl = new Date(deadline);
+  const diff = (dl - today) / (1000*60*60*24);
+  if (diff < 0) return 'deadline-over';
+  if (diff <= 2) return 'deadline-warn';
+  return 'deadline-ok';
+}
+
+function renderKanban(containerId, taskList) {
+  const container = document.getElementById(containerId);
+  if (taskList.length === 0) {
+    let title = 'Задач пока нет';
+    let sub = currentUser && currentUser.roleKey === 'leader'
+      ? 'Нажмите «Создать задачу», чтобы добавить первую'
+      : 'Ожидайте назначения задач от руководителя';
+    if (useCloud && !cloudLoaded) {
+      title = '⏳ Подключение к облаку...';
+      sub = 'Загружаем задачи из общей базы';
+    }
+    container.innerHTML = `
+      <div class="empty-board">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <div class="empty-board-title">${title}</div>
+        <div style="font-size:14px;">${sub}</div>
+      </div>`;
+    return;
+  }
+  let html = '';
+  columns.forEach(col => {
+    const colTasks = taskList.filter(t => t.status === col);
+    const cfg = statusConfig[col];
+    html += `<div class="kanban-column">
+      <div class="column-header">
+        <div class="column-title"><span class="column-dot ${cfg.dot}"></span>${cfg.text}</div>
+        <div class="column-count">${colTasks.length}</div>
+      </div>
+      <div class="column-cards">`;
+    if (colTasks.length === 0) {
+      html += `<div class="empty-column">Нет задач</div>`;
+    } else {
+      colTasks.forEach(t => {
+        const emp = employees.find(e => e.id === t.employeeId);
+        const pClass = t.priority === 'high' ? 'priority-high' : t.priority === 'medium' ? 'priority-medium' : 'priority-low';
+        const pText = t.priority === 'high' ? 'Высокий' : t.priority === 'medium' ? 'Средний' : 'Низкий';
+        html += `
+          <div class="task-card" onclick="openTask(${t.id})">
+            <div class="task-card-header">
+              <span class="task-id">#${String(t.id).padStart(3,'0')}</span>
+              <span class="task-priority ${pClass}">${pText}</span>
+            </div>
+            <div class="task-title">${t.title}</div>
+            <div class="task-desc">${t.description}</div>
+            <div class="task-footer">
+              <div class="task-assignee">
+                <div class="avatar">${emp.initials}</div>
+                <span>${emp.name.split(' ')[0]}</span>
+              </div>
+              <span class="task-date">${formatDate(t.created)}</span>
+            </div>
+          </div>`;
+      });
+    }
+    html += `</div></div>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderEmployeeSelect() {
+  const sel = document.getElementById('employeeSelect');
+  sel.innerHTML = '<option value="">— Выберите сотрудника —</option>' +
+    employees.map(e => `<option value="${e.id}" ${currentEmployeeFilter==e.id?'selected':''}>${e.name} — ${e.role}</option>`).join('');
+}
+
+function openTask(id) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  currentTaskId = id;
+  const emp = employees.find(e => e.id === t.employeeId);
+  const creator = employees.find(e => e.id === t.createdBy);
+  const sc = statusConfig[t.status];
+  const pClass = t.priority === 'high' ? 'priority-high' : t.priority === 'medium' ? 'priority-medium' : 'priority-low';
+  const pText = t.priority === 'high' ? 'Высокий' : t.priority === 'medium' ? 'Средний' : 'Низкий';
+
+  document.getElementById('modalTaskId').textContent = `Задача #${String(t.id).padStart(3,'0')}`;
+  document.getElementById('modalTaskTitle').textContent = t.title;
+  document.getElementById('modalDescription').textContent = t.description;
+  document.getElementById('modalCreated').textContent = formatDate(t.created);
+  document.getElementById('modalAssignee').innerHTML = `<div class="creator-badge"><div class="avatar" style="width:22px;height:22px;font-size:10px;">${emp.initials}</div>${emp.name}</div>`;
+  document.getElementById('modalCreator').innerHTML = `<div class="creator-badge"><div class="avatar" style="width:22px;height:22px;font-size:10px;background:var(--success);">${creator.initials}</div>${creator.name}</div>`;
+  document.getElementById('modalStatus').innerHTML = `<span class="status-tag ${sc.class}">${sc.text}</span>`;
+  document.getElementById('modalPriority').innerHTML = `<span class="task-priority ${pClass}">${pText}</span>`;
+
+  if (t.deadline) {
+    const dlClass = getDeadlineClass(t.deadline);
+    const dlLabel = dlClass === 'deadline-over' ? '⚠️ Просрочен' : dlClass === 'deadline-warn' ? '⏰ Скоро' : '✅ В срок';
+    document.getElementById('modalDeadline').innerHTML = `<span class="deadline-info ${dlClass}">${dlLabel} · ${formatDate(t.deadline)}</span>`;
+  } else {
+    document.getElementById('modalDeadline').textContent = 'Не установлен';
+  }
+
+  renderTaskActions(t);
+  renderComments(t);
+  renderCustomerApprove(t);
+
+  document.getElementById('taskModal').classList.add('active');
+}
+
+function renderTaskActions(t) {
+  const actions = document.getElementById('modalActions');
+  const isLeader = currentUser.roleKey === 'leader';
+  const isAssignee = t.employeeId === currentUser.id;
+  let html = '';
+
+  if (isLeader) {
+    html += `<button class="btn btn-secondary" onclick="openEditModal(${t.id})">✎ Редактировать</button>`;
+    html += `<button class="btn btn-danger" onclick="requestDelete(${t.id})">🗑 Удалить</button>`;
+  }
+
+  if (isAssignee || isLeader) {
+    if (t.status === 'waiting') {
+      html += `<button class="btn btn-primary" onclick="changeStatus(${t.id},'in_progress')">▶ Принять и начать работу</button>`;
+    }
+    if (t.status === 'in_progress') {
+      html += `<button class="btn btn-warning" onclick="changeStatus(${t.id},'waiting')">↩ Вернуть в "Ждёт принятия"</button>`;
+      html += `<button class="btn btn-success" onclick="changeStatus(${t.id},'review')">✓ Завершить → на проверку</button>`;
+    }
+    if (t.status === 'review') {
+      html += `<button class="btn btn-secondary" onclick="changeStatus(${t.id},'in_progress')">↩ Вернуть в работу</button>`;
+    }
+  }
+
+  actions.innerHTML = html || '<span style="color:var(--muted);font-size:14px;">Нет доступных действий</span>';
+}
+
+function renderComments(t) {
+  const list = document.getElementById('commentsList');
+  if (!t.comments || t.comments.length === 0) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px;">Комментариев пока нет</div>';
+    return;
+  }
+  list.innerHTML = t.comments.map(c => `
+    <div class="comment">
+      <div class="comment-header">
+        <span class="comment-author">${c.author}</span>
+        <span class="comment-date">${c.date}</span>
+      </div>
+      <div class="comment-text">${c.text}</div>
+    </div>
+  `).join('');
+}
+
+function renderCustomerApprove(t) {
+  const block = document.getElementById('customerApproveBlock');
+  if (t.status === 'review') {
+    const creator = employees.find(e => e.id === t.createdBy);
+    const isCreator = t.createdBy === currentUser.id;
+    if (isCreator) {
+      block.innerHTML = `
+        <div class="customer-approve">
+          <div class="customer-approve-title">🔔 Ожидает вашего подтверждения как заказчика</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Вы создали эту задачу. Подтвердите выполнение исполнителем.</div>
+          <button class="btn btn-success" onclick="customerApprove(${t.id})">✓ Подтвердить выполнение</button>
+        </div>`;
+    } else {
+      block.innerHTML = `
+        <div class="customer-approve" style="background:#fef3c7;border-color:var(--warning);">
+          <div class="customer-approve-title" style="color:#92400e;">⏳ Ожидает подтверждения заказчиком</div>
+          <div style="font-size:13px;color:var(--muted);">Заказчик: ${creator.name}</div>
+        </div>`;
+    }
+  } else {
+    block.innerHTML = '';
+  }
+}
+
+function changeStatus(id, newStatus) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  t.status = newStatus;
+  const actionMap = {
+    in_progress: 'Задача принята и переведена в работу',
+    waiting: 'Задача возвращена в статус "Ждёт принятия"',
+    review: 'Задача отправлена на проверку заказчику',
+    done: 'Задача подтверждена заказчиком и выполнена'
+  };
+  t.comments = t.comments || [];
+  t.comments.push({ author: currentUser.name, date: getCurrentDateTime(), text: actionMap[newStatus] || 'Статус изменён' });
+  persistUpsert(t);
+  if (!useCloud) saveTasks();
+  notify(`Статус задачи #${String(id).padStart(3,'0')} изменён`);
+  openTask(id);
+  render();
+}
+
+function customerApprove(id) {
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  if (t.createdBy !== currentUser.id) {
+    notify('Подтвердить может только заказчик (создатель задачи)');
+    return;
+  }
+  t.status = 'done';
+  t.comments = t.comments || [];
+  t.comments.push({ author: currentUser.name, date: getCurrentDateTime(), text: 'Работа выполнена качественно, претензий нет. Подтверждаю выполнение.' });
+  persistUpsert(t);
+  if (!useCloud) saveTasks();
+  notify('✓ Вы подтвердили выполнение задачи');
+  openTask(id);
+  render();
+}
+
+function addComment() {
+  const text = document.getElementById('commentText').value.trim();
+  if (!text || !currentTaskId) return;
+  const t = tasks.find(x => x.id === currentTaskId);
+  t.comments = t.comments || [];
+  t.comments.push({ author: currentUser.name, date: getCurrentDateTime(), text: text });
+  document.getElementById('commentText').value = '';
+  persistUpsert(t);
+  if (!useCloud) saveTasks();
+  renderComments(t);
+  notify('Комментарий добавлен');
+}
+
+function requestDelete(id) {
+  if (!currentUser || currentUser.roleKey !== 'leader') {
+    notify('⛔ Удаление задач доступно только руководителю');
+    return;
+  }
+  const t = tasks.find(x => x.id === id);
+  if (!t) {
+    notify('Задача не найдена');
+    return;
+  }
+  pendingDeleteId = id;
+  document.getElementById('confirmText').textContent =
+    `Задача #${String(id).padStart(3,'0')} «${t.title}» будет удалена безвозвратно.`;
+  document.getElementById('confirmModal').classList.add('active');
+}
+
+function confirmDelete() {
+  if (!currentUser || currentUser.roleKey !== 'leader') {
+    notify('⛔ Удаление задач доступно только руководителю');
+    cancelDelete();
+    return;
+  }
+  if (pendingDeleteId === null) { cancelDelete(); return; }
+  const idx = tasks.findIndex(x => x.id === pendingDeleteId);
+  const removedId = pendingDeleteId;
+  if (idx !== -1) tasks.splice(idx, 1);
+  pendingDeleteId = null;
+  persistDelete(removedId);
+  if (!useCloud) saveTasks();
+  document.getElementById('confirmModal').classList.remove('active');
+  closeModal();
+  notify('✓ Задача #' + String(removedId).padStart(3,'0') + ' удалена');
+  render();
+}
+
+function cancelDelete() {
+  pendingDeleteId = null;
+  document.getElementById('confirmModal').classList.remove('active');
+}
+
+function closeModal() {
+  document.getElementById('taskModal').classList.remove('active');
+  currentTaskId = null;
+}
+
+function openCreateModal() {
+  if (currentUser.roleKey !== 'leader') {
+    notify('⛔ Создание задач доступно только руководителю');
+    return;
+  }
+  editingTaskId = null;
+  document.getElementById('createModalSubtitle').textContent = 'Новая задача';
+  document.getElementById('createModalTitle').textContent = 'Создание задачи';
+  document.getElementById('createSaveBtn').textContent = 'Создать';
+  document.getElementById('newTaskTitle').value = '';
+  document.getElementById('newTaskDesc').value = '';
+  document.getElementById('newTaskDeadline').value = '';
+  document.getElementById('newTaskPriority').value = 'medium';
+  document.getElementById('newTaskStatus').value = 'waiting';
+  const sel = document.getElementById('newTaskEmployee');
+  sel.innerHTML = employees.filter(e => e.id !== currentUser.id).map(e => `<option value="${e.id}">${e.name} — ${e.role}</option>`).join('');
+  document.getElementById('creatorPreview').textContent = currentUser.name;
+  document.getElementById('createModal').classList.add('active');
+}
+
+function openEditModal(id) {
+  if (currentUser.roleKey !== 'leader') {
+    notify('⛔ Редактирование доступно только руководителю');
+    return;
+  }
+  const t = tasks.find(x => x.id === id);
+  if (!t) return;
+  editingTaskId = id;
+  document.getElementById('createModalSubtitle').textContent = `Редактирование #${String(id).padStart(3,'0')}`;
+  document.getElementById('createModalTitle').textContent = 'Редактирование задачи';
+  document.getElementById('createSaveBtn').textContent = 'Сохранить';
+  document.getElementById('newTaskTitle').value = t.title;
+  document.getElementById('newTaskDesc').value = t.description || '';
+  document.getElementById('newTaskDeadline').value = t.deadline || '';
+  document.getElementById('newTaskPriority').value = t.priority;
+  document.getElementById('newTaskStatus').value = t.status;
+  const sel = document.getElementById('newTaskEmployee');
+  sel.innerHTML = employees.map(e => `<option value="${e.id}" ${e.id===t.employeeId?'selected':''}>${e.name} — ${e.role}</option>`).join('');
+  const creator = employees.find(e => e.id === t.createdBy);
+  document.getElementById('creatorPreview').textContent = creator.name;
+  document.getElementById('createModal').classList.add('active');
+}
+
+function saveTask() {
+  if (currentUser.roleKey !== 'leader') {
+    notify('⛔ Операция недоступна');
+    return;
+  }
+  const title = document.getElementById('newTaskTitle').value.trim();
+  const desc = document.getElementById('newTaskDesc').value.trim();
+  const employeeId = parseInt(document.getElementById('newTaskEmployee').value);
+  const deadline = document.getElementById('newTaskDeadline').value;
+  const priority = document.getElementById('newTaskPriority').value;
+  const status = document.getElementById('newTaskStatus').value;
+
+  if (!title) { notify('⚠️ Введите название задачи'); return; }
+  if (!deadline) { notify('⚠️ Укажите срок выполнения'); return; }
+
+  if (editingTaskId) {
+    const t = tasks.find(x => x.id === editingTaskId);
+    t.title = title;
+    t.description = desc;
+    t.employeeId = employeeId;
+    t.deadline = deadline;
+    t.priority = priority;
+    t.status = status;
+    t.comments = t.comments || [];
+    t.comments.push({ author: currentUser.name, date: getCurrentDateTime(), text: 'Задача отредактирована руководителем' });
+    persistUpsert(t);
+    notify('✓ Задача обновлена');
+  } else {
+    const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+    const newTask = {
+      id: newId,
+      title,
+      description: desc,
+      status,
+      employeeId,
+      createdBy: currentUser.id,
+      priority,
+      deadline,
+      created: new Date().toISOString().split('T')[0],
+      comments: [{ author: currentUser.name, date: getCurrentDateTime(), text: 'Задача создана' }]
+    };
+    tasks.push(newTask);
+    persistUpsert(newTask);
+    notify('✓ Задача создана и сохранена');
+  }
+  if (!useCloud) saveTasks();
+  closeCreateModal();
+  render();
+}
+
+function closeCreateModal() {
+  document.getElementById('createModal').classList.remove('active');
+  editingTaskId = null;
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  const months = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+  const date = new Date(d);
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function getCurrentDateTime() {
+  const n = new Date();
+  const pad = x => String(x).padStart(2,'0');
+  return `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())} ${pad(n.getHours())}:${pad(n.getMinutes())}`;
+}
+
+function notify(msg) {
+  const n = document.createElement('div');
+  n.className = 'notification';
+  n.textContent = msg;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 2500);
+}
+
+window.addEventListener('storage', (e) => {
+  if (useCloud || e.key !== STORAGE_KEY) return;
+  tasks = loadTasks();
+  render();
+  notify('🔄 Данные обновлены из другой вкладки');
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentView = tab.dataset.view;
+    document.getElementById('allView').classList.toggle('hidden', currentView !== 'all');
+    document.getElementById('employeeView').classList.toggle('hidden', currentView !== 'employee');
+    if (currentView === 'employee') {
+      renderEmployeeSelect();
+      if (currentEmployeeFilter) renderKanban('empKanbanBoard', getEmployeeFilteredTasks(currentEmployeeFilter));
+    }
+  });
+});
+
+document.getElementById('employeeSelect').addEventListener('change', (e) => {
+  currentEmployeeFilter = e.target.value ? parseInt(e.target.value) : null;
+  if (currentEmployeeFilter) {
+    renderKanban('empKanbanBoard', getEmployeeFilteredTasks(currentEmployeeFilter));
+  } else {
+    document.getElementById('empKanbanBoard').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">Выберите сотрудника</div>';
+  }
+});
+
+document.getElementById('taskModal').addEventListener('click', (e) => {
+  if (e.target.id === 'taskModal') closeModal();
+});
+document.getElementById('createModal').addEventListener('click', (e) => {
+  if (e.target.id === 'createModal') closeCreateModal();
+});
+document.getElementById('confirmModal').addEventListener('click', (e) => {
+  if (e.target.id === 'confirmModal') cancelDelete();
+});
+
+document.getElementById('passwordInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('loginInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') document.getElementById('passwordInput').focus();
+});
+</script>
+
+</body>
+</html>
